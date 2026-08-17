@@ -72,6 +72,15 @@ measures address it instead:
    (`extensions/.../ads/AdFailure.java`) purely reflectively — no stubs needed, fully
    `try`/`catch`-guarded, and it needs only `p0`, so it fits methods with very few
    registers (the plain injection would have needed 5 consecutive ones).
+**Verified result:** the slots do collapse, after being visible for roughly a second.
+That residual flash is structural and not fixable from bytecode: the page payload the
+app fetches already contains the ad config, so Dart renders the container at its
+reserved height *before* any native ad call exists to intercept — the no-fill is
+delivered as early as the plugin is reachable. The page data is fetched and parsed
+entirely in Dart (`cricinfo_specs_flutter` + `package:http`), never crossing into
+Java/Kotlin, so the slot declaration can't be stripped en route either. Removing the
+flash entirely would mean patching AOT Dart in `libapp.so`.
+
 2. **Invalidate adaptive sizing** — every
    `FlutterAdSize$AdSizeFactory.get*AdaptiveBannerAdSize(...)` returns `AdSize.INVALID`.
    The plugin then answers `null` to Dart's size query, and the google_mobile_ads
