@@ -57,6 +57,29 @@ with their original (non-obfuscated) class names, so we hook there. Source:
 > `FlutterAdLoader` no-op is the real ad-killer; the initializer no-ops additionally
 > stop Meta & Taboola (which need an explicit init with publisher info) and Teads.
 
+### Collapsing the empty ad slots
+Blocking a load silently leaves the Dart widget waiting forever, so the app keeps the
+slot's reserved height and you see an empty grey box where the ad used to be. The ad
+slots themselves are declared by **server-driven page config**
+(`MatchPageAdConfig(appAdUnitPath:)`, `CiAppAdGptUnits_incontentApp*`), so they can't
+be removed from the APK — and the app has no ad-free/subscription flag to flip. Two
+measures address it instead:
+
+1. **Report "no fill"** — inline slots (`FlutterAdManagerBannerAd`, `FlutterBannerAd`,
+   `FlutterNativeAd`) call `AdInstanceManager.onAdFailedToLoad(...)` instead of
+   loading. That's the same signal an unsold GAM slot delivers in production, which
+   the app already handles by collapsing the slot. Implemented in the extension
+   (`extensions/.../ads/AdFailure.java`) purely reflectively — no stubs needed, fully
+   `try`/`catch`-guarded, and it needs only `p0`, so it fits methods with very few
+   registers (the plain injection would have needed 5 consecutive ones).
+2. **Invalidate adaptive sizing** — every
+   `FlutterAdSize$AdSizeFactory.get*AdaptiveBannerAdSize(...)` returns `AdSize.INVALID`.
+   The plugin then answers `null` to Dart's size query, and the google_mobile_ads
+   pattern is to skip building the ad entirely. Note `INVALID` is
+   `new AdSize(0, 0, "invalid")`; the 2-arg constructor builds `"0x0_as"` and would
+   *not* compare equal, so the 3-arg form is used, with the (obfuscated) AdSize type
+   read from each method's own return type.
+
 ### Forced-update lockout (important)
 ESPN gates old builds out of the app entirely via **server-side** remote config, so a
 patched (or simply outdated) install eventually boots straight into a blocking
@@ -109,8 +132,8 @@ patching can't suppress it. Would require editing `libapp.so` (out of scope).
 - **arm64-only**: the source XAPK only carried the `arm64_v8a` split, so the output
   APK runs on 64-bit ARM devices (essentially all modern phones). Re-run against an
   XAPK containing other ABIs if you need them.
-- Banner slots are Dart-laid-out; with no ad loaded they should collapse, but a
-  blank gap is possible on some screens. Interstitials / app-open simply never show.
+- Empty ad slots: see [Collapsing the empty slots](#collapsing-the-empty-ad-slots).
+  Interstitials / app-open simply never show.
 
 ## Build the bundle (`.mpp`)
 

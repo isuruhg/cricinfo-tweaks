@@ -36,6 +36,7 @@ val removeAdsPatch = bytecodePatch(
     default = true,
 ) {
     compatibleWith(COMPATIBILITY_CRICINFO)
+    extendWith("extensions/extension.mpe")
 
     execute {
         // Return Boolean.TRUE from an androidx.startup Initializer.create(Context):
@@ -51,16 +52,57 @@ val removeAdsPatch = bytecodePatch(
             ?.filter { it.name.startsWith("load") }
             ?.forEach { it.addInstructions(0, "return-void") }
 
-        // 2. google_mobile_ads: no-op the banner platform-view load() (no-arg, void).
-        for (bannerClass in listOf(
+        // 2. Inline ad slots (banners + native). Skipping the load silently would leave
+        // the Dart widget waiting forever, so the app keeps the slot's reserved height
+        // and the user sees an empty grey box. Instead report a "no fill" -- the same
+        // signal a real unsold GAM slot delivers -- so the app runs its own no-fill
+        // path and collapses the slot. The helper is reflective and fully guarded, and
+        // needs only p0, so it fits regardless of how few registers load() has.
+        for (inlineAdClass in listOf(
             "Lio/flutter/plugins/googlemobileads/FlutterAdManagerBannerAd;", // GAM + Fluid (inherited)
             "Lio/flutter/plugins/googlemobileads/FlutterBannerAd;",          // AdMob
+            "Lio/flutter/plugins/googlemobileads/FlutterNativeAd;",          // in-feed native
         )) {
-            mutableClassDefByOrNull(bannerClass)
+            mutableClassDefByOrNull(inlineAdClass)
                 ?.methods
                 ?.filter { it.name == "load" && it.parameterTypes.isEmpty() }
-                ?.forEach { it.addInstructions(0, "return-void") }
+                ?.forEach {
+                    it.addInstructions(
+                        0,
+                        """
+                            invoke-static { p0 }, Lapp/template/extension/ads/AdFailure;->reportNoFill(Ljava/lang/Object;)V
+                            return-void
+                        """,
+                    )
+                }
         }
+
+        // 2b. Adaptive banner sizing. Dart asks the native side how tall an adaptive
+        // banner would be; the plugin already answers null when the computed size is
+        // AdSize.INVALID, and the google_mobile_ads pattern is to skip building the ad
+        // entirely when that lookup returns null. Force these to INVALID so adaptive
+        // slots are never even constructed.
+        //
+        // AdSize.INVALID is `new AdSize(0, 0, "invalid")` -- the 2-arg constructor
+        // builds a different name ("0x0_as"), which would not compare equal, so the
+        // 3-arg form is used. The AdSize type is read from the method's own return
+        // type, since it is obfuscated and renamed between app versions.
+        mutableClassDefByOrNull("Lio/flutter/plugins/googlemobileads/FlutterAdSize\$AdSizeFactory;")
+            ?.methods
+            ?.filter { it.name.contains("AdaptiveBannerAdSize") }
+            ?.forEach { method ->
+                val adSizeType = method.returnType
+                method.addInstructions(
+                    0,
+                    """
+                        const/4 v0, 0x0
+                        const-string v1, "invalid"
+                        new-instance v2, $adSizeType
+                        invoke-direct { v2, v0, v0, v1 }, $adSizeType-><init>(IILjava/lang/String;)V
+                        return-object v2
+                    """,
+                )
+            }
 
         // 3. Skip ad-SDK initialization entirely.
         for (initializer in listOf(
