@@ -11,6 +11,29 @@ server-driven "you must update" lockout — at the source, not just network-bloc
 **Contents:** [What it patches](#remove-ads) · [Build](#build-the-bundle-mpp) ·
 [Use](#use-it) · [Updating](#updating-for-a-new-app-version) · [Disclaimer](#disclaimer)
 
+## Patches
+
+<!-- PATCHES_START EXPANDED -->
+> **[v1.0.0](https://github.com/isuruhg/cricinfo-tweaks/releases/tag/v1.0.0)**&nbsp;&nbsp;•&nbsp;&nbsp;`main`&nbsp;&nbsp;•&nbsp;&nbsp;3 patches total
+<details open>
+<summary>📦 ESPNcricinfo&nbsp;&nbsp;•&nbsp;&nbsp;3 patches</summary>
+<br>
+
+**🎯 Supported versions:**
+
+| 26.07.24 | 26.05.11 |
+| :---: | :---: |
+
+| 💊&nbsp;Patch | 📜&nbsp;Description | ⚙️&nbsp;Options |
+|----------|----------------|-----------|
+| [Block tracking & telemetry](#block-tracking-telemetry) | Stops AppsFlyer, comScore, Conviva and Adobe Marketing from initializing, so they collect or send no attribution/analytics data. Leaves CleverTap intact to preserve push notifications. |  |
+| [Remove ads](#remove-ads) | Stops ESPNcricinfo from fetching or showing banner, interstitial, native, rewarded and app-open ads (Google Ad Manager, Meta Audience Network, Taboola) by severing the Flutter ad plugins and skipping the ad SDK setup. |  |
+| [Remove splash ad, startup delay & forced update](#remove-splash-ad-startup-delay-forced-update) | Removes the full-screen splash ad shown on every cold start (the main cause of the slow boot), the GPT interstitial, and the "you must update" blocking screen, by hiding their Firebase Remote Config keys from the app. Other remote config is untouched. |  |
+
+</details>
+
+<!-- PATCHES_END -->
+
 ## How this app is built (why the hooks look the way they do)
 
 ESPNcricinfo is a **Flutter** app (`CiMainActivity extends FlutterFragmentActivity`).
