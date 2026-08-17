@@ -14,7 +14,7 @@ server-driven "you must update" lockout — at the source, not just network-bloc
 ## Patches
 
 <!-- PATCHES_START EXPANDED -->
-> **[v1.0.0](https://github.com/isuruhg/cricinfo-tweaks/releases/tag/v1.0.0)**&nbsp;&nbsp;•&nbsp;&nbsp;`main`&nbsp;&nbsp;•&nbsp;&nbsp;3 patches total
+> **[v1.0.0-dev.1](https://github.com/isuruhg/cricinfo-tweaks/releases/tag/v1.0.0-dev.1)**&nbsp;&nbsp;•&nbsp;&nbsp;`dev`&nbsp;&nbsp;•&nbsp;&nbsp;3 patches total
 <details open>
 <summary>📦 ESPNcricinfo&nbsp;&nbsp;•&nbsp;&nbsp;3 patches</summary>
 <br>
